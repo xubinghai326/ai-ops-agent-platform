@@ -203,6 +203,68 @@
       line-height: 1.75;
     }
 
+    .handoff-board {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(124, 77, 216, 0.14);
+      background: rgba(124, 77, 216, 0.06);
+    }
+
+    .handoff-board.hidden {
+      display: none;
+    }
+
+    .handoff-board strong {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 15px;
+    }
+
+    .handoff-board p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .handoff-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 14px;
+    }
+
+    .handoff-step {
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(29, 34, 48, 0.08);
+      background: rgba(255, 255, 255, 0.84);
+      padding: 14px;
+    }
+
+    .handoff-step.done {
+      border-color: rgba(24, 132, 95, 0.18);
+      background: rgba(24, 132, 95, 0.08);
+    }
+
+    .handoff-step.active {
+      border-color: rgba(44, 91, 255, 0.22);
+      background: rgba(44, 91, 255, 0.08);
+    }
+
+    .handoff-step strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .handoff-step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
     .timeline-grid {
       margin-top: 16px;
     }
@@ -253,7 +315,8 @@
       .scenario-row,
       .route-grid,
       .worker-grid,
-      .result-grid {
+      .result-grid,
+      .handoff-grid {
         grid-template-columns: 1fr;
       }
 
@@ -491,9 +554,17 @@
               <div class="decision-actions">
                 <button class="btn btn-secondary" id="escalateBtn" disabled>提交人工复核</button>
                 <button class="btn btn-violet" id="noticeBtn" disabled>采纳公告草稿</button>
+                <button class="btn btn-secondary" id="polishBtn" disabled>人工润色公告</button>
+                <button class="btn btn-secondary" id="approveBtn" disabled>负责人审核</button>
+                <button class="btn btn-primary" id="publishBtn" disabled>正式发布公告</button>
               </div>
               <div class="decision-note" id="decisionNote">
                 当前处于演示初始状态。平台会在完成识别和 Worker 汇总后，生成下一步建议，但不会自动发奖、改配置或直接对外发布。
+              </div>
+              <div class="handoff-board hidden" id="handoffBoard">
+                <strong>公告人工接力流程</strong>
+                <p id="handoffCopy">公告草稿已进入人工处理链路，后续需要完成人工润色、负责人审核与正式发布。</p>
+                <div class="handoff-grid" id="handoffGrid"></div>
               </div>
             </article>
           </div>
@@ -592,7 +663,13 @@
       outputs: null,
       logs: [],
       timelineStage: "idle",
-      reviewStatus: "idle"
+      reviewStatus: "idle",
+      noticeWorkflow: {
+        accepted: false,
+        polished: false,
+        approved: false,
+        published: false
+      }
     };
 
     const timelineRegistry = [
@@ -612,7 +689,8 @@
         "summaryPill", "advicePill", "noticePill", "jsonPill",
         "metricTask", "metricTaskCopy", "metricPriority", "metricPriorityCopy", "metricStatus", "metricStatusCopy",
         "runBtn", "resetBtn", "logList", "traceList", "timelineGrid",
-        "humanAction", "humanReviewRule", "decisionNote", "escalateBtn", "noticeBtn"
+        "humanAction", "humanReviewRule", "decisionNote", "escalateBtn", "noticeBtn",
+        "polishBtn", "approveBtn", "publishBtn", "handoffBoard", "handoffCopy", "handoffGrid"
       ].forEach((id) => { el[id] = document.getElementById(id); });
     }
 
@@ -631,6 +709,12 @@
       state.outputs = null;
       state.timelineStage = "idle";
       state.reviewStatus = "idle";
+      state.noticeWorkflow = {
+        accepted: false,
+        polished: false,
+        approved: false,
+        published: false
+      };
       state.workers = Object.fromEntries(workerRegistry.map((worker) => [worker.key, { status: "waiting", output: "尚未执行。" }]));
       if (clearLogs) state.logs = [];
     }
@@ -892,6 +976,11 @@
         el.decisionNote.textContent = "当前处于演示初始状态。平台会在完成识别和 Worker 汇总后，生成下一步建议，但不会自动发奖、改配置或直接对外发布。";
         el.escalateBtn.disabled = true;
         el.noticeBtn.disabled = true;
+        el.polishBtn.disabled = true;
+        el.approveBtn.disabled = true;
+        el.publishBtn.disabled = true;
+        el.handoffBoard.classList.add("hidden");
+        el.handoffGrid.innerHTML = "";
         return;
       }
 
@@ -906,11 +995,63 @@
       el.humanReviewRule.textContent = reviewRuleMap[state.manager.task];
       el.decisionNote.textContent = state.reviewStatus === "escalated"
         ? "已提交人工复核。此时平台应把结构化任务单、摘要和建议动作推送给值班运营或负责人继续处理。"
-        : state.reviewStatus === "notice"
-          ? "已采纳公告草稿。此时平台应进入人工润色、负责人审核和正式发布流程，而不是自动对外发送。"
-          : "当前结果仅作为 AI 辅助建议。所有高风险动作都必须由人工确认后再进入下一步。";
+        : state.noticeWorkflow.published
+          ? "公告已完成正式发布。这里的发布动作仍然是人工确认后的结果，AI 仅负责辅助生成和流程提醒。"
+          : state.noticeWorkflow.approved
+            ? "公告已通过负责人审核，下一步应由人工执行正式发布，并同步客服、社区与舆情口径。"
+            : state.noticeWorkflow.polished
+              ? "公告已完成人工润色，下一步需要负责人审核，确认口径、时机与影响范围后才能对外发布。"
+              : state.reviewStatus === "notice"
+                ? "已采纳公告草稿。此时平台应进入人工润色、负责人审核和正式发布流程，而不是自动对外发送。"
+                : "当前结果仅作为 AI 辅助建议。所有高风险动作都必须由人工确认后再进入下一步。";
       el.escalateBtn.disabled = false;
       el.noticeBtn.disabled = !state.outputs.notice || state.outputs.notice.includes("暂不建议");
+      el.polishBtn.disabled = !state.noticeWorkflow.accepted || state.noticeWorkflow.polished;
+      el.approveBtn.disabled = !state.noticeWorkflow.polished || state.noticeWorkflow.approved;
+      el.publishBtn.disabled = !state.noticeWorkflow.approved || state.noticeWorkflow.published;
+
+      if (state.noticeWorkflow.accepted) {
+        el.handoffBoard.classList.remove("hidden");
+        el.handoffCopy.textContent = state.noticeWorkflow.published
+          ? "公告已经完成人工润色、审核和正式发布，当前链路已闭环。"
+          : "公告草稿已进入人工处理链路，后续需要完成人工润色、负责人审核与正式发布。";
+        const steps = [
+          {
+            title: "人工润色",
+            desc: "由运营或社区同学修正文案语气、补充确认时间点和玩家可感知信息。",
+            done: state.noticeWorkflow.polished || state.noticeWorkflow.approved || state.noticeWorkflow.published,
+            active: state.noticeWorkflow.accepted && !state.noticeWorkflow.polished
+          },
+          {
+            title: "负责人审核",
+            desc: "由值班负责人确认口径、影响范围、是否需要同步补偿与研发结论。",
+            done: state.noticeWorkflow.approved || state.noticeWorkflow.published,
+            active: state.noticeWorkflow.polished && !state.noticeWorkflow.approved
+          },
+          {
+            title: "正式发布",
+            desc: "人工发布到社区、公告后台或客服同步渠道，并完成对外信息统一。",
+            done: state.noticeWorkflow.published,
+            active: state.noticeWorkflow.approved && !state.noticeWorkflow.published
+          }
+        ];
+        el.handoffGrid.innerHTML = "";
+        steps.forEach((step) => {
+          const node = document.createElement("div");
+          node.className = `handoff-step${step.done ? " done" : step.active ? " active" : ""}`;
+          node.innerHTML = `
+            <strong>${step.title}</strong>
+            <p>${step.desc}</p>
+            <div class="tag-list">
+              <span class="pill ${step.done ? "green" : step.active ? "blue" : "gold"}">${step.done ? "已完成" : step.active ? "当前处理" : "待处理"}</span>
+            </div>
+          `;
+          el.handoffGrid.appendChild(node);
+        });
+      } else {
+        el.handoffBoard.classList.add("hidden");
+        el.handoffGrid.innerHTML = "";
+      }
     }
 
     function renderMetrics() {
@@ -979,7 +1120,23 @@
       });
       el.noticeBtn.addEventListener("click", () => {
         state.reviewStatus = "notice";
+        state.noticeWorkflow.accepted = true;
         log("已采纳公告草稿，等待人工润色与审核发布。", "success");
+        render();
+      });
+      el.polishBtn.addEventListener("click", () => {
+        state.noticeWorkflow.polished = true;
+        log("公告已完成人工润色，等待负责人审核。", "success");
+        render();
+      });
+      el.approveBtn.addEventListener("click", () => {
+        state.noticeWorkflow.approved = true;
+        log("公告已通过负责人审核，等待人工正式发布。", "success");
+        render();
+      });
+      el.publishBtn.addEventListener("click", () => {
+        state.noticeWorkflow.published = true;
+        log("公告已正式发布，并已完成客服与社区口径同步。", "success");
         render();
       });
     }
