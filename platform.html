@@ -258,6 +258,47 @@
       font-size: 14px;
     }
 
+    .review-board {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(213, 156, 29, 0.18);
+      background: rgba(213, 156, 29, 0.08);
+    }
+
+    .review-board.hidden {
+      display: none;
+    }
+
+    .review-board strong {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 15px;
+    }
+
+    .review-board p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .review-select {
+      width: 100%;
+      margin-top: 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(29, 34, 48, 0.12);
+      background: rgba(255, 255, 255, 0.96);
+      padding: 12px 14px;
+      color: var(--ink);
+      outline: none;
+    }
+
+    .review-select:focus {
+      border-color: rgba(44, 91, 255, 0.4);
+      box-shadow: 0 0 0 4px rgba(44, 91, 255, 0.1);
+    }
+
     .handoff-step p {
       margin: 0;
       color: var(--muted);
@@ -553,13 +594,29 @@
               </div>
               <div class="decision-actions">
                 <button class="btn btn-secondary" id="escalateBtn" disabled>提交人工复核</button>
+                <button class="btn btn-secondary" id="takeoverBtn" disabled>值班运营接单</button>
+                <button class="btn btn-secondary" id="leaderBtn" disabled>负责人拍板</button>
+                <button class="btn btn-secondary" id="resolveBtn" disabled>回写处置结论</button>
                 <button class="btn btn-violet" id="noticeBtn" disabled>采纳公告草稿</button>
                 <button class="btn btn-secondary" id="polishBtn" disabled>人工润色公告</button>
+                <button class="btn btn-secondary" id="returnBtn" disabled>退回重新润色</button>
                 <button class="btn btn-secondary" id="approveBtn" disabled>负责人审核</button>
+                <button class="btn btn-secondary" id="cancelNoticeBtn" disabled>终止发布</button>
                 <button class="btn btn-primary" id="publishBtn" disabled>正式发布公告</button>
               </div>
               <div class="decision-note" id="decisionNote">
                 当前处于演示初始状态。平台会在完成识别和 Worker 汇总后，生成下一步建议，但不会自动发奖、改配置或直接对外发布。
+              </div>
+              <div class="review-board hidden" id="reviewBoard">
+                <strong>人工复核处理入口</strong>
+                <p id="reviewBoardCopy">提交人工复核后，值班运营需要先接单，再决定是否升级负责人，最后回写处置结论，形成闭环。</p>
+                <select class="review-select" id="reviewDecisionSelect">
+                  <option value="">请选择负责人拍板结果</option>
+                  <option value="observe">继续观察并同步客服</option>
+                  <option value="notice">启动公告流程</option>
+                  <option value="incident">升级事故并同步多团队</option>
+                </select>
+                <div class="handoff-grid" id="reviewGrid"></div>
               </div>
               <div class="handoff-board hidden" id="handoffBoard">
                 <strong>公告人工接力流程</strong>
@@ -664,11 +721,20 @@
       logs: [],
       timelineStage: "idle",
       reviewStatus: "idle",
+      reviewWorkflow: {
+        submitted: false,
+        takenOver: false,
+        leaderApproved: false,
+        resolved: false,
+        decision: ""
+      },
       noticeWorkflow: {
         accepted: false,
         polished: false,
         approved: false,
-        published: false
+        published: false,
+        returned: false,
+        cancelled: false
       }
     };
 
@@ -690,7 +756,9 @@
         "metricTask", "metricTaskCopy", "metricPriority", "metricPriorityCopy", "metricStatus", "metricStatusCopy",
         "runBtn", "resetBtn", "logList", "traceList", "timelineGrid",
         "humanAction", "humanReviewRule", "decisionNote", "escalateBtn", "noticeBtn",
-        "polishBtn", "approveBtn", "publishBtn", "handoffBoard", "handoffCopy", "handoffGrid"
+        "polishBtn", "approveBtn", "publishBtn", "handoffBoard", "handoffCopy", "handoffGrid",
+        "takeoverBtn", "leaderBtn", "resolveBtn", "reviewBoard", "reviewBoardCopy", "reviewGrid",
+        "reviewDecisionSelect", "returnBtn", "cancelNoticeBtn"
       ].forEach((id) => { el[id] = document.getElementById(id); });
     }
 
@@ -709,11 +777,20 @@
       state.outputs = null;
       state.timelineStage = "idle";
       state.reviewStatus = "idle";
+      state.reviewWorkflow = {
+        submitted: false,
+        takenOver: false,
+        leaderApproved: false,
+        resolved: false,
+        decision: ""
+      };
       state.noticeWorkflow = {
         accepted: false,
         polished: false,
         approved: false,
-        published: false
+        published: false,
+        returned: false,
+        cancelled: false
       };
       state.workers = Object.fromEntries(workerRegistry.map((worker) => [worker.key, { status: "waiting", output: "尚未执行。" }]));
       if (clearLogs) state.logs = [];
@@ -975,10 +1052,19 @@
         el.humanReviewRule.textContent = "当前场景尚未识别，暂不触发人工处置建议。";
         el.decisionNote.textContent = "当前处于演示初始状态。平台会在完成识别和 Worker 汇总后，生成下一步建议，但不会自动发奖、改配置或直接对外发布。";
         el.escalateBtn.disabled = true;
+        el.takeoverBtn.disabled = true;
+        el.leaderBtn.disabled = true;
+        el.resolveBtn.disabled = true;
         el.noticeBtn.disabled = true;
         el.polishBtn.disabled = true;
+        el.returnBtn.disabled = true;
         el.approveBtn.disabled = true;
+        el.cancelNoticeBtn.disabled = true;
         el.publishBtn.disabled = true;
+        el.reviewDecisionSelect.value = "";
+        el.reviewDecisionSelect.disabled = true;
+        el.reviewBoard.classList.add("hidden");
+        el.reviewGrid.innerHTML = "";
         el.handoffBoard.classList.add("hidden");
         el.handoffGrid.innerHTML = "";
         return;
@@ -993,46 +1079,135 @@
 
       el.humanAction.textContent = state.manager.actions.join(" / ");
       el.humanReviewRule.textContent = reviewRuleMap[state.manager.task];
-      el.decisionNote.textContent = state.reviewStatus === "escalated"
-        ? "已提交人工复核。此时平台应把结构化任务单、摘要和建议动作推送给值班运营或负责人继续处理。"
-        : state.noticeWorkflow.published
-          ? "公告已完成正式发布。这里的发布动作仍然是人工确认后的结果，AI 仅负责辅助生成和流程提醒。"
-          : state.noticeWorkflow.approved
-            ? "公告已通过负责人审核，下一步应由人工执行正式发布，并同步客服、社区与舆情口径。"
-            : state.noticeWorkflow.polished
-              ? "公告已完成人工润色，下一步需要负责人审核，确认口径、时机与影响范围后才能对外发布。"
-              : state.reviewStatus === "notice"
-                ? "已采纳公告草稿。此时平台应进入人工润色、负责人审核和正式发布流程，而不是自动对外发送。"
-                : "当前结果仅作为 AI 辅助建议。所有高风险动作都必须由人工确认后再进入下一步。";
+      let note = "当前结果仅作为 AI 辅助建议。所有高风险动作都必须由人工确认后再进入下一步。";
+      if (state.reviewStatus === "escalated") {
+        note = "已提交人工复核。此时平台应把结构化任务单、摘要和建议动作推送给值班运营或负责人继续处理。";
+      }
+      if (state.reviewWorkflow.takenOver) {
+        note = "值班运营已经接单。此时应结合任务单、摘要和风险建议判断是否需要升级负责人拍板。";
+      }
+      if (state.reviewWorkflow.leaderApproved) {
+        const decisionTextMap = {
+          observe: "负责人已拍板为“继续观察并同步客服”，下一步应回写结论并维持监控。",
+          notice: "负责人已拍板为“启动公告流程”，下一步应由值班运营推进公告链路并回写处理结论。",
+          incident: "负责人已拍板为“升级事故并同步多团队”，下一步应同步研发、客服和社区，并根据需要推进公告流程。"
+        };
+        note = decisionTextMap[state.reviewWorkflow.decision] || "负责人已经完成拍板，下一步应由值班运营回写处置结论，并把动作同步给客服、社区和研发。";
+      }
+      if (state.reviewWorkflow.resolved) {
+        note = "人工复核链路已完成，处置结论已经回写。后续可转入公告、补偿、事故复盘或继续观察。";
+      }
+      if (state.reviewStatus === "notice") {
+        note = "已采纳公告草稿。此时平台应进入人工润色、负责人审核和正式发布流程，而不是自动对外发送。";
+      }
+      if (state.noticeWorkflow.polished) {
+        note = "公告已完成人工润色，下一步需要负责人审核，确认口径、时机与影响范围后才能对外发布。";
+      }
+      if (state.noticeWorkflow.returned) {
+        note = "公告审核未通过，已退回重新润色。需要补充或修正文案后再次提交审核。";
+      }
+      if (state.noticeWorkflow.approved) {
+        note = "公告已通过负责人审核，下一步应由人工执行正式发布，并同步客服、社区与舆情口径。";
+      }
+      if (state.noticeWorkflow.cancelled) {
+        note = "公告流程已被人工终止，当前不再对外发布。平台会保留草稿、审批痕迹与终止原因供复盘使用。";
+      }
+      if (state.noticeWorkflow.published) {
+        note = "公告已完成正式发布。这里的发布动作仍然是人工确认后的结果，AI 仅负责辅助生成和流程提醒。";
+      }
+      el.decisionNote.textContent = note;
       el.escalateBtn.disabled = false;
-      el.noticeBtn.disabled = !state.outputs.notice || state.outputs.notice.includes("暂不建议");
-      el.polishBtn.disabled = !state.noticeWorkflow.accepted || state.noticeWorkflow.polished;
-      el.approveBtn.disabled = !state.noticeWorkflow.polished || state.noticeWorkflow.approved;
-      el.publishBtn.disabled = !state.noticeWorkflow.approved || state.noticeWorkflow.published;
+      el.takeoverBtn.disabled = !state.reviewWorkflow.submitted || state.reviewWorkflow.takenOver;
+      el.reviewDecisionSelect.disabled = !state.reviewWorkflow.takenOver || state.reviewWorkflow.leaderApproved;
+      el.reviewDecisionSelect.value = state.reviewWorkflow.decision;
+      el.leaderBtn.disabled = !state.reviewWorkflow.takenOver || state.reviewWorkflow.leaderApproved || !state.reviewWorkflow.decision;
+      el.resolveBtn.disabled = !state.reviewWorkflow.leaderApproved || state.reviewWorkflow.resolved;
+      const canStartNotice = !state.outputs.notice.includes("暂不建议") && ["notice", "incident"].includes(state.reviewWorkflow.decision);
+      el.noticeBtn.disabled = !canStartNotice || state.noticeWorkflow.accepted || state.noticeWorkflow.cancelled || state.noticeWorkflow.published;
+      el.polishBtn.disabled = !state.noticeWorkflow.accepted || state.noticeWorkflow.polished || state.noticeWorkflow.cancelled || state.noticeWorkflow.published;
+      el.returnBtn.disabled = !state.noticeWorkflow.polished || state.noticeWorkflow.approved || state.noticeWorkflow.cancelled || state.noticeWorkflow.published;
+      el.approveBtn.disabled = !state.noticeWorkflow.polished || state.noticeWorkflow.approved || state.noticeWorkflow.cancelled || state.noticeWorkflow.published;
+      el.cancelNoticeBtn.disabled = !state.noticeWorkflow.accepted || state.noticeWorkflow.cancelled || state.noticeWorkflow.published;
+      el.publishBtn.disabled = !state.noticeWorkflow.approved || state.noticeWorkflow.published || state.noticeWorkflow.cancelled;
+
+      if (state.reviewWorkflow.submitted) {
+        el.reviewBoard.classList.remove("hidden");
+        el.reviewBoardCopy.textContent = state.reviewWorkflow.resolved
+          ? "人工复核已经完成接单、拍板与结论回写，当前复核链路已闭环。"
+          : state.reviewWorkflow.leaderApproved
+            ? "负责人已经完成拍板。当前应按拍板结果推进公告、同步或观察，并最终回写处置结论。"
+            : "提交人工复核后，值班运营需要先接单，再由负责人选择处置方向，最后回写处置结论，形成闭环。";
+        const reviewSteps = [
+          {
+            title: "值班运营接单",
+            desc: "值班运营进入处理台，查看结构化任务单、问题摘要和建议动作。",
+            done: state.reviewWorkflow.takenOver || state.reviewWorkflow.leaderApproved || state.reviewWorkflow.resolved,
+            active: state.reviewWorkflow.submitted && !state.reviewWorkflow.takenOver
+          },
+          {
+            title: "负责人拍板",
+            desc: state.reviewWorkflow.decision
+              ? `当前拍板结果：${state.reviewWorkflow.decision === "observe" ? "继续观察并同步客服" : state.reviewWorkflow.decision === "notice" ? "启动公告流程" : "升级事故并同步多团队"}。`
+              : "对高风险或跨团队问题，由负责人决定是继续观察、启动公告，还是升级事故。",
+            done: state.reviewWorkflow.leaderApproved || state.reviewWorkflow.resolved,
+            active: state.reviewWorkflow.takenOver && !state.reviewWorkflow.leaderApproved
+          },
+          {
+            title: "回写处置结论",
+            desc: "把最终处理动作和拍板结果回写到工单、日志与协同链路中，供后续客服和复盘使用。",
+            done: state.reviewWorkflow.resolved,
+            active: (state.reviewWorkflow.takenOver || state.reviewWorkflow.leaderApproved) && !state.reviewWorkflow.resolved
+          }
+        ];
+        el.reviewGrid.innerHTML = "";
+        reviewSteps.forEach((step) => {
+          const node = document.createElement("div");
+          node.className = `handoff-step${step.done ? " done" : step.active ? " active" : ""}`;
+          node.innerHTML = `
+            <strong>${step.title}</strong>
+            <p>${step.desc}</p>
+            <div class="tag-list">
+              <span class="pill ${step.done ? "green" : step.active ? "blue" : "gold"}">${step.done ? "已完成" : step.active ? "当前处理" : "待处理"}</span>
+            </div>
+          `;
+          el.reviewGrid.appendChild(node);
+        });
+      } else {
+        el.reviewBoard.classList.add("hidden");
+        el.reviewGrid.innerHTML = "";
+      }
 
       if (state.noticeWorkflow.accepted) {
         el.handoffBoard.classList.remove("hidden");
         el.handoffCopy.textContent = state.noticeWorkflow.published
           ? "公告已经完成人工润色、审核和正式发布，当前链路已闭环。"
-          : "公告草稿已进入人工处理链路，后续需要完成人工润色、负责人审核与正式发布。";
+          : state.noticeWorkflow.cancelled
+            ? "公告流程已被人工终止。平台会保留草稿和审批痕迹，供后续复盘或重新拉起。"
+            : state.noticeWorkflow.returned
+              ? "公告审核未通过，当前已退回润色环节。修改完成后需要重新提交审核。"
+              : "公告草稿已进入人工处理链路，后续需要完成人工润色、负责人审核与正式发布。";
         const steps = [
           {
             title: "人工润色",
             desc: "由运营或社区同学修正文案语气、补充确认时间点和玩家可感知信息。",
             done: state.noticeWorkflow.polished || state.noticeWorkflow.approved || state.noticeWorkflow.published,
-            active: state.noticeWorkflow.accepted && !state.noticeWorkflow.polished
+            active: state.noticeWorkflow.accepted && !state.noticeWorkflow.polished && !state.noticeWorkflow.cancelled
           },
           {
             title: "负责人审核",
-            desc: "由值班负责人确认口径、影响范围、是否需要同步补偿与研发结论。",
+            desc: state.noticeWorkflow.returned
+              ? "审核已退回，需等待重新润色后再次进入审核。"
+              : "由值班负责人确认口径、影响范围、是否需要同步补偿与研发结论。",
             done: state.noticeWorkflow.approved || state.noticeWorkflow.published,
-            active: state.noticeWorkflow.polished && !state.noticeWorkflow.approved
+            active: state.noticeWorkflow.polished && !state.noticeWorkflow.approved && !state.noticeWorkflow.cancelled
           },
           {
             title: "正式发布",
-            desc: "人工发布到社区、公告后台或客服同步渠道，并完成对外信息统一。",
-            done: state.noticeWorkflow.published,
-            active: state.noticeWorkflow.approved && !state.noticeWorkflow.published
+            desc: state.noticeWorkflow.cancelled
+              ? "公告流程已终止，本次不再对外发布。"
+              : "人工发布到社区、公告后台或客服同步渠道，并完成对外信息统一。",
+            done: state.noticeWorkflow.published || state.noticeWorkflow.cancelled,
+            active: state.noticeWorkflow.approved && !state.noticeWorkflow.published && !state.noticeWorkflow.cancelled
           }
         ];
         el.handoffGrid.innerHTML = "";
@@ -1115,7 +1290,28 @@
       el.resetBtn.addEventListener("click", resetDemo);
       el.escalateBtn.addEventListener("click", () => {
         state.reviewStatus = "escalated";
+        state.reviewWorkflow.submitted = true;
         log("已提交人工复核，等待值班运营确认。", "success");
+        render();
+      });
+      el.takeoverBtn.addEventListener("click", () => {
+        state.reviewWorkflow.takenOver = true;
+        log("值班运营已接单，开始查看任务单与处置建议。", "success");
+        render();
+      });
+      el.leaderBtn.addEventListener("click", () => {
+        state.reviewWorkflow.leaderApproved = true;
+        const decisionLabelMap = {
+          observe: "继续观察并同步客服",
+          notice: "启动公告流程",
+          incident: "升级事故并同步多团队"
+        };
+        log(`负责人已完成拍板：${decisionLabelMap[state.reviewWorkflow.decision] || "未命名结果"}。`, "success");
+        render();
+      });
+      el.resolveBtn.addEventListener("click", () => {
+        state.reviewWorkflow.resolved = true;
+        log("人工复核处置结论已回写，协同链路已完成同步。", "success");
         render();
       });
       el.noticeBtn.addEventListener("click", () => {
@@ -1126,17 +1322,35 @@
       });
       el.polishBtn.addEventListener("click", () => {
         state.noticeWorkflow.polished = true;
+        state.noticeWorkflow.returned = false;
         log("公告已完成人工润色，等待负责人审核。", "success");
+        render();
+      });
+      el.returnBtn.addEventListener("click", () => {
+        state.noticeWorkflow.returned = true;
+        state.noticeWorkflow.polished = false;
+        state.noticeWorkflow.approved = false;
+        log("公告审核未通过，已退回重新润色。", "danger");
         render();
       });
       el.approveBtn.addEventListener("click", () => {
         state.noticeWorkflow.approved = true;
+        state.noticeWorkflow.returned = false;
         log("公告已通过负责人审核，等待人工正式发布。", "success");
+        render();
+      });
+      el.cancelNoticeBtn.addEventListener("click", () => {
+        state.noticeWorkflow.cancelled = true;
+        log("公告流程已被人工终止，本次不再对外发布。", "danger");
         render();
       });
       el.publishBtn.addEventListener("click", () => {
         state.noticeWorkflow.published = true;
         log("公告已正式发布，并已完成客服与社区口径同步。", "success");
+        render();
+      });
+      el.reviewDecisionSelect.addEventListener("change", (event) => {
+        state.reviewWorkflow.decision = event.target.value;
         render();
       });
     }
