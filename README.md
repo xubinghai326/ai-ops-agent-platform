@@ -30,7 +30,7 @@
 在项目目录启动一个静态服务即可：
 
 ```bash
-cd ai-ops-agent-mvp
+cd ai-ops-agent-platform
 python3 -m http.server 4173
 ```
 
