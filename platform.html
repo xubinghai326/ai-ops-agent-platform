@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 运营 Agent 平台 · Demo</title>
+  <link rel="stylesheet" href="./prototype-assets/ui.css" />
+  <style>
+    .agent-shell {
+      display: grid;
+      gap: 18px;
+    }
+
+    .agent-grid {
+      display: grid;
+      grid-template-columns: 1.06fr 0.94fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .scenario-row,
+    .route-grid,
+    .worker-grid,
+    .result-grid,
+    .registry-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .scenario-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .route-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .worker-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .result-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .scenario-btn,
+    .route-card,
+    .worker-card,
+    .result-card,
+    .registry-card {
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(29, 34, 48, 0.08);
+      background: rgba(255, 255, 255, 0.78);
+      padding: 16px;
+    }
+
+    .scenario-btn {
+      text-align: left;
+      cursor: pointer;
+      transition: 160ms ease;
+    }
+
+    .scenario-btn:hover,
+    .scenario-btn.active {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-soft);
+      border-color: rgba(44, 91, 255, 0.24);
+    }
+
+    .scenario-btn strong,
+    .route-card strong,
+    .worker-card strong,
+    .result-card strong,
+    .registry-card strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+
+    .scenario-btn p,
+    .route-card p,
+    .worker-card p,
+    .result-card p,
+    .registry-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .worker-card {
+      min-height: 150px;
+    }
+
+    .worker-card.waiting {
+      opacity: 0.72;
+    }
+
+    .worker-card.running {
+      border-color: rgba(44, 91, 255, 0.24);
+      background: rgba(44, 91, 255, 0.08);
+    }
+
+    .worker-card.done {
+      border-color: rgba(24, 132, 95, 0.18);
+      background: rgba(24, 132, 95, 0.08);
+    }
+
+    .worker-meta,
+    .result-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .manager-panel {
+      border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, rgba(44, 91, 255, 0.1), rgba(124, 77, 216, 0.12));
+      border: 1px solid rgba(44, 91, 255, 0.16);
+      padding: 18px;
+    }
+
+    .manager-panel h3 {
+      margin: 0 0 8px;
+      font-size: 22px;
+    }
+
+    .manager-panel p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .result-card pre {
+      margin: 10px 0 0;
+      padding: 14px;
+      border-radius: var(--radius-md);
+      background: rgba(17, 22, 32, 0.94);
+      color: #e8efff;
+      font-size: 12px;
+      line-height: 1.7;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .decision-grid,
+    .timeline-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .decision-card,
+    .timeline-card {
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(29, 34, 48, 0.08);
+      background: rgba(255, 255, 255, 0.78);
+      padding: 16px;
+    }
+
+    .decision-card p,
+    .timeline-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .decision-card strong,
+    .timeline-card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+
+    .decision-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .decision-note {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      background: rgba(44, 91, 255, 0.08);
+      border: 1px solid rgba(44, 91, 255, 0.12);
+      color: #274483;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .timeline-grid {
+      margin-top: 16px;
+    }
+
+    .timeline-card.active {
+      border-color: rgba(44, 91, 255, 0.24);
+      background: rgba(44, 91, 255, 0.08);
+    }
+
+    .timeline-card.done {
+      border-color: rgba(24, 132, 95, 0.2);
+      background: rgba(24, 132, 95, 0.08);
+    }
+
+    .trace-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .trace-item {
+      border-radius: var(--radius-md);
+      padding: 14px 15px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(29, 34, 48, 0.08);
+    }
+
+    .trace-item strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    .trace-item p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .sticky {
+      position: sticky;
+      top: 24px;
+    }
+
+    @media (max-width: 1160px) {
+      .agent-grid,
+      .scenario-row,
+      .route-grid,
+      .worker-grid,
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .sticky {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">智</div>
+        <div class="brand-text">
+          <strong>AI 运营 Agent 平台 MVP</strong>
+          <span>两天版 Demo · Manager + Worker 最小闭环</span>
+        </div>
+      </div>
+      <nav class="topnav">
+        <a href="./index.html">项目首页</a>
+        <a href="./README.html">项目说明</a>
+      </nav>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="hero-eyebrow">Platform Scope</div>
+        <h3>先证明“能跑通”，再接入真实业务</h3>
+        <p>
+          当前 Demo 不追求复杂能力，而是优先验证一个真实闭环：输入文本 -> Manager 路由 -> Worker 执行 -> 统一结果输出 -> 人工确认建议。
+        </p>
+        <div class="side-links">
+          <a class="side-link" href="#entry">
+            <strong>01. 输入层</strong>
+            <span>录入玩家反馈 / 客服工单 / 社区文本。</span>
+          </a>
+          <a class="side-link" href="#manager">
+            <strong>02. Manager 节点</strong>
+            <span>识别意图、判断优先级并决定调用哪些 Worker。</span>
+          </a>
+          <a class="side-link" href="#workers">
+            <strong>03. Worker 层</strong>
+            <span>执行分类、摘要、相似案例检索和公告草稿生成。</span>
+          </a>
+          <a class="side-link" href="#results">
+            <strong>04. 输出层</strong>
+            <span>返回内部处理建议和结构化任务单。</span>
+          </a>
+        </div>
+      </aside>
+
+      <main class="content agent-shell">
+        <section class="hero-grid">
+          <article class="hero-card">
+            <div class="hero-eyebrow">AI Ops Agent MVP</div>
+            <h1>用一个通用输入场景，<br />先做成真正能演示的 Agent 平台</h1>
+            <p>
+              这里把“玩家反馈处理”作为通用场景，让 Manager 负责理解和调度，Worker 负责单点处理任务，最后输出可供运营直接参考的建议与公告草稿。
+            </p>
+            <div class="hero-actions">
+              <button class="btn btn-primary" id="runBtn">运行本次 Agent 流程</button>
+              <button class="btn btn-secondary" id="resetBtn">重置当前场景</button>
+            </div>
+          </article>
+
+          <div class="metric-rail">
+            <article class="metric-card">
+              <small>当前任务类型</small>
+              <strong id="metricTask">待识别</strong>
+              <p id="metricTaskCopy">Manager 尚未开始解析输入。</p>
+            </article>
+            <article class="metric-card">
+              <small>优先级</small>
+              <strong id="metricPriority">-</strong>
+              <p id="metricPriorityCopy">优先级由命中规则和语义特征共同决定。</p>
+            </article>
+            <article class="metric-card dark-card">
+              <small>执行状态</small>
+              <strong id="metricStatus">待执行</strong>
+              <p id="metricStatusCopy">尚未运行 Manager 与 Worker 协同流程。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="card" id="entry">
+          <div class="section-head">
+            <div>
+              <h2>输入层</h2>
+              <p>可以切换三个典型运营场景，也可以直接编辑输入内容，模拟真实工单或玩家反馈。</p>
+            </div>
+            <span class="pill blue">Input</span>
+          </div>
+          <div class="scenario-row" id="scenarioRow"></div>
+          <div class="field-grid" style="margin-top: 18px;">
+            <div class="field">
+              <label for="sourceType">输入来源</label>
+              <select id="sourceType">
+                <option value="player_feedback">玩家反馈</option>
+                <option value="service_ticket">客服工单</option>
+                <option value="community_post">社区评论</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="versionTag">版本号</label>
+              <input id="versionTag" type="text" value="1.3.2" />
+            </div>
+            <div class="field">
+              <label for="channelTag">渠道</label>
+              <input id="channelTag" type="text" value="官方社区" />
+            </div>
+            <div class="field">
+              <label for="playerTag">玩家 ID / 工单号</label>
+              <input id="playerTag" type="text" value="UID-204857" />
+            </div>
+            <div class="field full">
+              <label for="eventText">输入文本</label>
+              <textarea id="eventText"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="agent-grid">
+          <div class="stack">
+            <article class="card" id="manager">
+              <div class="section-head">
+                <div>
+                  <h2>Manager 节点</h2>
+                  <p>负责意图识别、优先级判断和 Worker 路由，不直接做重计算和高风险执行。</p>
+                </div>
+                <span class="pill violet">Manager</span>
+              </div>
+              <div class="manager-panel">
+                <h3 id="managerTitle">等待分析输入</h3>
+                <p id="managerDesc">点击“运行本次 Agent 流程”后，Manager 会先理解输入，再输出结构化任务单。</p>
+              </div>
+              <div class="route-grid" style="margin-top: 16px;">
+                <div class="route-card">
+                  <strong>问题类型</strong>
+                  <p id="routeTask">待识别</p>
+                </div>
+                <div class="route-card">
+                  <strong>优先级</strong>
+                  <p id="routePriority">待判断</p>
+                </div>
+                <div class="route-card">
+                  <strong>人工确认建议</strong>
+                  <p id="routeReview">待判断</p>
+                </div>
+              </div>
+              <div class="tag-list" id="routeWorkers"></div>
+              <div class="trace-list" id="traceList"></div>
+            </article>
+
+            <article class="card">
+              <div class="section-head">
+                <div>
+                  <h2>执行时间线</h2>
+                  <p>把一次任务拆成固定阶段，方便以后对接真实审计、回放和自动化编排。</p>
+                </div>
+                <span class="pill blue">Timeline</span>
+              </div>
+              <div class="timeline-grid" id="timelineGrid"></div>
+            </article>
+
+            <article class="card" id="workers">
+              <div class="section-head">
+                <div>
+                  <h2>Worker 执行层</h2>
+                  <p>第一阶段只保留最通用的 4 个 Worker，用来验证平台闭环是否成立。</p>
+                </div>
+                <span class="pill gold">Worker</span>
+              </div>
+              <div class="worker-grid" id="workerGrid"></div>
+            </article>
+
+            <article class="card" id="results">
+              <div class="section-head">
+                <div>
+                  <h2>结果输出层</h2>
+                  <p>统一输出内部处理建议、对外公告草稿和结构化任务单，供运营人工确认后再进入下一步。</p>
+                </div>
+                <span class="pill green">Output</span>
+              </div>
+              <div class="result-grid">
+                <div class="result-card">
+                  <div class="result-meta">
+                    <strong>统一问题摘要</strong>
+                    <span class="pill blue" id="summaryPill">待生成</span>
+                  </div>
+                  <pre id="summaryOutput">尚未运行 Agent 流程。</pre>
+                </div>
+                <div class="result-card">
+                  <div class="result-meta">
+                    <strong>内部处理建议</strong>
+                    <span class="pill gold" id="advicePill">待生成</span>
+                  </div>
+                  <pre id="adviceOutput">尚未运行 Agent 流程。</pre>
+                </div>
+                <div class="result-card">
+                  <div class="result-meta">
+                    <strong>对外公告草稿</strong>
+                    <span class="pill violet" id="noticePill">待生成</span>
+                  </div>
+                  <pre id="noticeOutput">尚未运行 Agent 流程。</pre>
+                </div>
+                <div class="result-card">
+                  <div class="result-meta">
+                    <strong>结构化任务单</strong>
+                    <span class="pill teal" id="jsonPill">待生成</span>
+                  </div>
+                  <pre id="jsonOutput">尚未运行 Agent 流程。</pre>
+                </div>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="section-head">
+                <div>
+                  <h2>人工确认闸门</h2>
+                  <p>Manager 和 Worker 只给出建议，不直接做高风险执行；最终动作仍由人工确认。</p>
+                </div>
+                <span class="pill red">Human Gate</span>
+              </div>
+              <div class="decision-grid">
+                <div class="decision-card">
+                  <strong>建议下一步动作</strong>
+                  <p id="humanAction">尚未生成建议，请先运行本次 Agent 流程。</p>
+                </div>
+                <div class="decision-card">
+                  <strong>人工确认要求</strong>
+                  <p id="humanReviewRule">当前场景尚未识别，暂不触发人工处置建议。</p>
+                </div>
+              </div>
+              <div class="decision-actions">
+                <button class="btn btn-secondary" id="escalateBtn" disabled>提交人工复核</button>
+                <button class="btn btn-violet" id="noticeBtn" disabled>采纳公告草稿</button>
+              </div>
+              <div class="decision-note" id="decisionNote">
+                当前处于演示初始状态。平台会在完成识别和 Worker 汇总后，生成下一步建议，但不会自动发奖、改配置或直接对外发布。
+              </div>
+            </article>
+          </div>
+
+          <div class="stack sticky">
+            <article class="card">
+              <div class="section-head">
+                <div>
+                  <h2>当前 Worker 注册表</h2>
+                  <p>当前 MVP 只支持通用 Worker，后续再逐步接入日志分析、分群统计等真实业务 Worker。</p>
+                </div>
+                <span class="pill teal">Registry</span>
+              </div>
+              <div class="registry-grid">
+                <div class="registry-card">
+                  <strong>Issue Classifier Worker</strong>
+                  <p>负责判断问题属于网络、数值、剧情或一般反馈。</p>
+                </div>
+                <div class="registry-card">
+                  <strong>Similar Case Worker</strong>
+                  <p>负责给出相似历史案例或 FAQ 参考。</p>
+                </div>
+                <div class="registry-card">
+                  <strong>Summary Worker</strong>
+                  <p>负责输出运营可直接阅读的问题摘要。</p>
+                </div>
+                <div class="registry-card">
+                  <strong>Notice Draft Worker</strong>
+                  <p>负责生成对外公告草稿或内部同步稿。</p>
+                </div>
+              </div>
+            </article>
+
+            <article class="card">
+              <div class="section-head">
+                <div>
+                  <h2>执行日志</h2>
+                  <p>记录 Manager 的判断和 Worker 的执行结果，方便后续接审计和回放。</p>
+                </div>
+                <span class="pill red">Log</span>
+              </div>
+              <div class="log-list" id="logList"></div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const scenarios = {
+      network: {
+        key: "network",
+        name: "网络异常",
+        desc: "掉线、重连失败、活动进行中卡住。",
+        source: "player_feedback",
+        version: "1.3.2",
+        channel: "官方社区",
+        player: "UID-204857",
+        text: "今天打活动一直掉线，重连三次还是进不去，奖励是不是也没了？已经连续遇到两次。"
+      },
+      numeric: {
+        key: "numeric",
+        name: "数值问题",
+        desc: "奖励异常、数值不对、发放配置怀疑有误。",
+        source: "service_ticket",
+        version: "1.3.2",
+        channel: "客服工单",
+        player: "TICKET-98321",
+        text: "邮件里补偿写的是金币，但实际领到的是钻石，而且数量非常夸张，感觉是不是配置填错了？"
+      },
+      plot: {
+        key: "plot",
+        name: "剧情吐槽",
+        desc: "情绪反馈、剧情吐槽、角色塑造争议。",
+        source: "community_post",
+        version: "1.3.2",
+        channel: "玩家社区",
+        player: "POST-5920",
+        text: "新剧情节奏太赶了，角色突然转变让我很出戏，不是 bug，但真的影响体验。"
+      }
+    };
+
+    const workerRegistry = [
+      { key: "classifier", title: "Issue Classifier Worker", desc: "分类玩家反馈属于网络 / 数值 / 活动 / 剧情 / BUG 哪一类。" },
+      { key: "similar", title: "Similar Case Worker", desc: "检索相似历史案例或 FAQ，给运营提供参考上下文。" },
+      { key: "summary", title: "Summary Worker", desc: "生成统一问题摘要，供运营快速理解当前问题。" },
+      { key: "notice", title: "Notice Draft Worker", desc: "生成对外公告草稿和内部同步稿。" }
+    ];
+
+    const state = {
+      currentScenario: "network",
+      running: false,
+      manager: null,
+      workers: {},
+      outputs: null,
+      logs: [],
+      timelineStage: "idle",
+      reviewStatus: "idle"
+    };
+
+    const timelineRegistry = [
+      { key: "input", title: "输入标准化", desc: "把玩家反馈、工单和社区文本转成统一事件对象。" },
+      { key: "manager", title: "Manager 路由", desc: "识别问题类型、优先级和需要调用的 Worker。" },
+      { key: "workers", title: "Worker 执行", desc: "依次完成分类、检索、摘要和公告草稿生成。" },
+      { key: "human", title: "人工确认", desc: "由运营或值班负责人确认是否采纳建议并进入后续动作。" }
+    ];
+
+    const el = {};
+
+    function bind() {
+      [
+        "scenarioRow", "sourceType", "versionTag", "channelTag", "playerTag", "eventText",
+        "managerTitle", "managerDesc", "routeTask", "routePriority", "routeReview", "routeWorkers",
+        "workerGrid", "summaryOutput", "adviceOutput", "noticeOutput", "jsonOutput",
+        "summaryPill", "advicePill", "noticePill", "jsonPill",
+        "metricTask", "metricTaskCopy", "metricPriority", "metricPriorityCopy", "metricStatus", "metricStatusCopy",
+        "runBtn", "resetBtn", "logList", "traceList", "timelineGrid",
+        "humanAction", "humanReviewRule", "decisionNote", "escalateBtn", "noticeBtn"
+      ].forEach((id) => { el[id] = document.getElementById(id); });
+    }
+
+    function timeNow() {
+      return new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    function log(text, tone = "info") {
+      state.logs.unshift({ time: timeNow(), text, tone });
+      state.logs = state.logs.slice(0, 10);
+    }
+
+    function resetState(clearLogs = false) {
+      state.running = false;
+      state.manager = null;
+      state.outputs = null;
+      state.timelineStage = "idle";
+      state.reviewStatus = "idle";
+      state.workers = Object.fromEntries(workerRegistry.map((worker) => [worker.key, { status: "waiting", output: "尚未执行。" }]));
+      if (clearLogs) state.logs = [];
+    }
+
+    function loadScenario(key) {
+      const scenario = scenarios[key];
+      state.currentScenario = key;
+      resetState(false);
+      el.sourceType.value = scenario.source;
+      el.versionTag.value = scenario.version;
+      el.channelTag.value = scenario.channel;
+      el.playerTag.value = scenario.player;
+      el.eventText.value = scenario.text;
+      log(`已切换到演示场景：${scenario.name}`, "info");
+      render();
+    }
+
+    function classifyIntent(text) {
+      const lower = text.toLowerCase();
+      if (/掉线|重连|卡住|延迟|进不去|登录/.test(text) || /disconnect|latency|reconnect/.test(lower)) {
+        return { task: "network_issue", priority: "high", confidence: 0.93, reason: "命中掉线、重连失败、登录失败等网络异常特征。", workers: ["classifier", "similar", "summary", "notice"], review: "建议人工复核后同步研发和客服", actions: ["建立事故工单", "同步研发排查", "准备统一公告口径"] };
+      }
+      if (/钻石|金币|奖励|补偿|配置|数值|邮件/.test(text)) {
+        return { task: "numeric_issue", priority: "critical", confidence: 0.95, reason: "命中奖励、补偿、配置异常等高风险数值特征。", workers: ["classifier", "similar", "summary", "notice"], review: "高价值资产场景，必须人工确认", actions: ["冻结相关配置", "核对影响范围", "准备熔断与补偿方案"] };
+      }
+      if (/剧情|角色|演出|文案|出戏/.test(text)) {
+        return { task: "plot_feedback", priority: "medium", confidence: 0.88, reason: "命中剧情节奏、角色塑造和情绪吐槽特征。", workers: ["classifier", "similar", "summary"], review: "可先归入内容反馈池，无需紧急执行动作", actions: ["归档到内容反馈池", "纳入版本复盘", "评估是否需要内容沟通"] };
+      }
+      return { task: "general_feedback", priority: "medium", confidence: 0.74, reason: "未命中高危规则，先归类为一般运营反馈。", workers: ["classifier", "summary"], review: "建议人工二次确认分类结果", actions: ["进入人工复核池", "按结果转派对应团队"] };
+    }
+
+    function simulateWorker(key, manager) {
+      const mapping = {
+        classifier: {
+          network_issue: "分类结果：网络 / 登录异常；置信度 93%。",
+          numeric_issue: "分类结果：数值 / 奖励配置异常；置信度 95%。",
+          plot_feedback: "分类结果：剧情体验 / 内容情绪反馈；置信度 88%。",
+          general_feedback: "分类结果：一般运营问题；置信度 74%。"
+        },
+        similar: {
+          network_issue: "召回相似案例：活动服重连失败 FAQ、版本 1.3.0 登录异常通告。",
+          numeric_issue: "召回相似案例：过往补偿配置误填、高价值货币误发止损预案。",
+          plot_feedback: "召回相似案例：剧情节奏负反馈周报、角色塑造争议摘要。",
+          general_feedback: "召回相似案例：常规工单处理模板。"
+        },
+        summary: {
+          network_issue: "玩家反馈活动过程中重复掉线并重连失败，已影响正常游玩，并引发对奖励丢失的担忧。",
+          numeric_issue: "玩家怀疑邮件奖励配置存在错误，基础货币与高价值货币出现错配，属于高风险运营事故候选。",
+          plot_feedback: "玩家对剧情节奏和角色转变表达明显负面情绪，问题偏内容体验而非技术故障。",
+          general_feedback: "当前反馈需要人工进一步确认，但暂未体现高危事故特征。"
+        },
+        notice: {
+          network_issue: "对外草稿：已收到部分玩家关于掉线与重连失败的反馈，我们正在核实处理中，后续会同步最新进展。",
+          numeric_issue: "对外草稿：已收到关于邮件奖励异常的反馈，当前正在紧急核实补偿配置与影响范围，请以官方后续说明为准。",
+          plot_feedback: "当前场景暂不建议直接生成对外公告，可先进入内部内容反馈整理。",
+          general_feedback: "当前场景暂不建议直接生成对外公告。"
+        }
+      };
+      return mapping[key][manager.task];
+    }
+
+    async function runWorker(workerKey, manager) {
+      state.workers[workerKey] = { status: "running", output: "执行中..." };
+      render();
+      await new Promise((resolve) => setTimeout(resolve, 380 + Math.random() * 260));
+      const output = simulateWorker(workerKey, manager);
+      state.workers[workerKey] = { status: "done", output };
+      log(`${workerKey} 执行完成`, "success");
+      render();
+      return output;
+    }
+
+    function buildResults(manager, outputs) {
+      const adviceMap = {
+        network_issue: "建议先同步研发确认是否存在范围性网络异常，再准备客服统一回复与公告口径；在结论未明前先发布“已收到、正在核实”的说明。",
+        numeric_issue: "建议立即升级为高风险运营事故，先确认配置快照和影响范围，再决定是否熔断、撤回或人工止损。",
+        plot_feedback: "建议归入内容体验反馈池，汇总到版本复盘，并由内容/文案同学评估是否需要后续优化说明。",
+        general_feedback: "建议进入人工复核池，由运营同学判断是否需要转研发、客服或社区团队跟进。"
+      };
+      return {
+        summary: outputs.summary,
+        advice: adviceMap[manager.task],
+        notice: outputs.notice || "当前场景暂不建议生成对外公告。",
+        json: {
+          task_type: manager.task,
+          priority: manager.priority,
+          confidence: manager.confidence,
+          target_workers: manager.workers,
+          needs_human_review: true,
+          reason: manager.reason,
+          recommended_actions: manager.actions,
+          source: el.sourceType.value,
+          version: el.versionTag.value,
+          channel: el.channelTag.value,
+          player_or_ticket: el.playerTag.value
+        }
+      };
+    }
+
+    async function runFlow() {
+      if (state.running) return;
+      state.running = true;
+      resetState(false);
+      state.timelineStage = "input";
+      log("Manager 开始解析输入事件", "info");
+      render();
+
+      await new Promise((resolve) => setTimeout(resolve, 420));
+      const manager = classifyIntent(el.eventText.value.trim());
+      state.manager = manager;
+      state.timelineStage = "manager";
+      log(`Manager 完成路由：${manager.task}`, manager.priority === "critical" ? "danger" : "success");
+      render();
+
+      const outputs = {};
+      state.timelineStage = "workers";
+      for (const workerKey of manager.workers) {
+        outputs[workerKey] = await runWorker(workerKey, manager);
+      }
+
+      state.outputs = buildResults(manager, outputs);
+      state.timelineStage = "human";
+      state.running = false;
+      log("结果汇总完成，等待人工确认是否进入下一步业务动作。", "success");
+      render();
+    }
+
+    function resetDemo() {
+      state.logs = [];
+      loadScenario(state.currentScenario);
+      log("已重置当前场景。", "info");
+      render();
+    }
+
+    function renderScenarios() {
+      el.scenarioRow.innerHTML = "";
+      Object.values(scenarios).forEach((scenario) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `scenario-btn ${state.currentScenario === scenario.key ? "active" : ""}`;
+        btn.innerHTML = `<strong>${scenario.name}</strong><p>${scenario.desc}</p>`;
+        btn.addEventListener("click", () => loadScenario(scenario.key));
+        el.scenarioRow.appendChild(btn);
+      });
+    }
+
+    function renderManager() {
+      if (!state.manager) {
+        el.managerTitle.textContent = state.running ? "Manager 正在识别问题意图..." : "等待分析输入";
+        el.managerDesc.textContent = state.running ? "系统正在结合规则和语义特征判断问题类型、优先级与路由策略。" : "点击“运行本次 Agent 流程”后，Manager 会先理解输入，再输出结构化任务单。";
+        el.routeTask.textContent = "待识别";
+        el.routePriority.textContent = "待判断";
+        el.routeReview.textContent = "待判断";
+        el.routeWorkers.innerHTML = `<span class="pill gold">尚未生成 Worker 路由</span>`;
+        el.traceList.innerHTML = `
+          <div class="trace-item">
+            <strong>决策轨迹未生成</strong>
+            <p>运行 Agent 后，这里会展示 Manager 的规则命中、风险判断与建议动作。</p>
+          </div>
+        `;
+        return;
+      }
+
+      el.managerTitle.textContent = `已识别为 ${state.manager.task}`;
+      el.managerDesc.textContent = `${state.manager.reason} 当前推荐优先级为 ${state.manager.priority.toUpperCase()}。`;
+      el.routeTask.textContent = state.manager.task;
+      el.routePriority.textContent = state.manager.priority.toUpperCase();
+      el.routeReview.textContent = state.manager.review;
+      el.routeWorkers.innerHTML = "";
+      state.manager.workers.forEach((worker) => {
+        const node = document.createElement("span");
+        node.className = "pill blue";
+        node.textContent = worker;
+        el.routeWorkers.appendChild(node);
+      });
+      el.traceList.innerHTML = `
+        <div class="trace-item">
+          <strong>规则命中</strong>
+          <p>${state.manager.reason}</p>
+        </div>
+        <div class="trace-item">
+          <strong>优先级判断</strong>
+          <p>当前优先级为 ${state.manager.priority.toUpperCase()}，置信度 ${(state.manager.confidence * 100).toFixed(0)}%。</p>
+        </div>
+        <div class="trace-item">
+          <strong>建议动作</strong>
+          <p>${state.manager.actions.join(" / ")}</p>
+        </div>
+      `;
+    }
+
+    function renderWorkers() {
+      el.workerGrid.innerHTML = "";
+      workerRegistry.forEach((worker) => {
+        const current = state.workers[worker.key];
+        const tone = current.status === "done" ? "green" : current.status === "running" ? "blue" : "gold";
+        const text = current.status === "done" ? "已完成" : current.status === "running" ? "执行中" : "待执行";
+        const card = document.createElement("div");
+        card.className = `worker-card ${current.status}`;
+        card.innerHTML = `
+          <div class="worker-meta">
+            <strong>${worker.title}</strong>
+            <span class="pill ${tone}">${text}</span>
+          </div>
+          <p>${worker.desc}</p>
+          <p style="margin-top: 12px;">${current.output}</p>
+        `;
+        el.workerGrid.appendChild(card);
+      });
+    }
+
+    function renderResults() {
+      const outputs = state.outputs;
+      el.summaryPill.textContent = outputs ? "已生成" : "待生成";
+      el.advicePill.textContent = outputs ? "已生成" : "待生成";
+      el.noticePill.textContent = outputs ? "已生成" : "待生成";
+      el.jsonPill.textContent = outputs ? "已生成" : "待生成";
+      el.summaryOutput.textContent = outputs ? outputs.summary : "尚未运行 Agent 流程。";
+      el.adviceOutput.textContent = outputs ? outputs.advice : "尚未运行 Agent 流程。";
+      el.noticeOutput.textContent = outputs ? outputs.notice : "尚未运行 Agent 流程。";
+      el.jsonOutput.textContent = outputs ? JSON.stringify(outputs.json, null, 2) : "尚未运行 Agent 流程。";
+    }
+
+    function renderTimeline() {
+      const stageOrder = ["input", "manager", "workers", "human"];
+      const currentIndex = stageOrder.indexOf(state.timelineStage);
+      el.timelineGrid.innerHTML = "";
+      timelineRegistry.forEach((item, index) => {
+        let className = "timeline-card";
+        if (currentIndex > index || (state.timelineStage === "human" && !state.running && state.outputs && index === stageOrder.length - 1)) {
+          className += " done";
+        } else if (currentIndex === index && state.running) {
+          className += " active";
+        } else if (currentIndex === index && !state.running && state.timelineStage === "human") {
+          className += " active";
+        }
+        const status = currentIndex > index
+          ? "已完成"
+          : currentIndex === index
+            ? (state.running || item.key === "human" ? "当前阶段" : "已完成")
+            : "待进入";
+        const node = document.createElement("div");
+        node.className = className;
+        node.innerHTML = `
+          <strong>${item.title}</strong>
+          <p>${item.desc}</p>
+          <div class="tag-list">
+            <span class="pill ${status === "已完成" ? "green" : status === "当前阶段" ? "blue" : "gold"}">${status}</span>
+          </div>
+        `;
+        el.timelineGrid.appendChild(node);
+      });
+    }
+
+    function renderHumanGate() {
+      if (!state.outputs || !state.manager) {
+        el.humanAction.textContent = "尚未生成建议，请先运行本次 Agent 流程。";
+        el.humanReviewRule.textContent = "当前场景尚未识别，暂不触发人工处置建议。";
+        el.decisionNote.textContent = "当前处于演示初始状态。平台会在完成识别和 Worker 汇总后，生成下一步建议，但不会自动发奖、改配置或直接对外发布。";
+        el.escalateBtn.disabled = true;
+        el.noticeBtn.disabled = true;
+        return;
+      }
+
+      const reviewRuleMap = {
+        network_issue: "建议值班运营确认后，立即同步研发、客服与社区口径，再决定是否升级事故。",
+        numeric_issue: "涉及高价值资产与配置风险，必须由运营负责人或值班经理人工拍板，禁止自动执行。",
+        plot_feedback: "可由内容运营人工判断是否纳入复盘或整理成内容反馈专题，无需自动发布公告。",
+        general_feedback: "建议由运营人工二次分诊，再转研发、客服或社区团队跟进。"
+      };
+
+      el.humanAction.textContent = state.manager.actions.join(" / ");
+      el.humanReviewRule.textContent = reviewRuleMap[state.manager.task];
+      el.decisionNote.textContent = state.reviewStatus === "escalated"
+        ? "已提交人工复核。此时平台应把结构化任务单、摘要和建议动作推送给值班运营或负责人继续处理。"
+        : state.reviewStatus === "notice"
+          ? "已采纳公告草稿。此时平台应进入人工润色、负责人审核和正式发布流程，而不是自动对外发送。"
+          : "当前结果仅作为 AI 辅助建议。所有高风险动作都必须由人工确认后再进入下一步。";
+      el.escalateBtn.disabled = false;
+      el.noticeBtn.disabled = !state.outputs.notice || state.outputs.notice.includes("暂不建议");
+    }
+
+    function renderMetrics() {
+      if (!state.manager) {
+        el.metricTask.textContent = "待识别";
+        el.metricTaskCopy.textContent = state.running ? "Manager 正在理解输入文本。" : "Manager 尚未开始解析输入。";
+        el.metricPriority.textContent = "-";
+        el.metricPriorityCopy.textContent = "优先级将由命中规则和语义特征共同决定。";
+      } else {
+        el.metricTask.textContent = state.manager.task;
+        el.metricTaskCopy.textContent = state.manager.reason;
+        el.metricPriority.textContent = state.manager.priority.toUpperCase();
+        el.metricPriorityCopy.textContent = state.manager.review;
+      }
+
+      el.metricStatus.textContent = state.running ? "执行中" : state.outputs ? "已完成" : "待执行";
+      el.metricStatusCopy.textContent = state.running
+        ? "Manager 与 Worker 正在协同执行，请观察状态变化。"
+        : state.outputs
+          ? "本次 MVP 已完成从输入到结果输出的完整闭环。"
+          : "尚未运行 Manager 与 Worker 协同流程。";
+    }
+
+    function renderLogs() {
+      el.logList.innerHTML = "";
+      state.logs.forEach((entry) => {
+        const tone = entry.tone === "danger" ? "red" : entry.tone === "success" ? "green" : "blue";
+        const node = document.createElement("div");
+        node.className = "log-item";
+        node.innerHTML = `
+          <div class="log-head">
+            <strong>${entry.time}</strong>
+            <span class="pill ${tone}">${entry.tone === "danger" ? "高优先级" : entry.tone === "success" ? "完成" : "记录"}</span>
+          </div>
+          <span>${entry.text}</span>
+        `;
+        el.logList.appendChild(node);
+      });
+    }
+
+    function renderButtons() {
+      el.runBtn.disabled = state.running;
+      el.resetBtn.disabled = state.running;
+      el.runBtn.textContent = state.running ? "Agent 执行中..." : "运行本次 Agent 流程";
+    }
+
+    function render() {
+      renderScenarios();
+      renderManager();
+      renderWorkers();
+      renderResults();
+      renderTimeline();
+      renderHumanGate();
+      renderMetrics();
+      renderLogs();
+      renderButtons();
+    }
+
+    function attach() {
+      el.runBtn.addEventListener("click", runFlow);
+      el.resetBtn.addEventListener("click", resetDemo);
+      el.escalateBtn.addEventListener("click", () => {
+        state.reviewStatus = "escalated";
+        log("已提交人工复核，等待值班运营确认。", "success");
+        render();
+      });
+      el.noticeBtn.addEventListener("click", () => {
+        state.reviewStatus = "notice";
+        log("已采纳公告草稿，等待人工润色与审核发布。", "success");
+        render();
+      });
+    }
+
+    bind();
+    attach();
+    resetState(true);
+    loadScenario("network");
+  </script>
+</body>
+</html>

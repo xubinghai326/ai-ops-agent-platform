@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 运营 Agent 平台 · 项目说明</title>
+  <link rel="stylesheet" href="./prototype-assets/ui.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">读</div>
+        <div class="brand-text">
+          <strong>AI 运营 Agent 平台说明</strong>
+          <span>两天 MVP 项目说明 / 目标 / 范围 / 后续扩展</span>
+        </div>
+      </div>
+      <nav class="topnav">
+        <a href="./index.html">项目首页</a>
+        <a href="./platform.html">平台 Demo</a>
+      </nav>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="hero-eyebrow">README</div>
+        <h3>这个项目是做什么的</h3>
+        <p>
+          这是一个在极短时间内构建的 AI 运营 Agent 平台 MVP，用于证明通用输入场景下，Manager + Worker 架构能够完成运营问题理解、路由、处理与结果输出闭环。
+        </p>
+      </aside>
+
+      <main class="content">
+        <section class="hero-grid">
+          <article class="hero-card">
+            <div class="hero-eyebrow">Project Scope</div>
+            <h1>先验证架构方向，<br />再逐步接入真实业务工具</h1>
+            <p>
+              当前阶段并不追求“大而全”，而是先搭出一个真正能演示的底座：输入一段玩家反馈、客服工单或社区文本，平台完成分类、路由、Worker 执行和结构化结果输出。
+            </p>
+          </article>
+
+          <div class="metric-rail">
+            <article class="metric-card">
+              <small>当前阶段</small>
+              <strong>MVP</strong>
+              <p>两天内交付，优先证明平台闭环成立。</p>
+            </article>
+            <article class="metric-card">
+              <small>当前能力</small>
+              <strong>通用问题处理</strong>
+              <p>支持网络异常、数值问题、剧情吐槽等典型输入。</p>
+            </article>
+            <article class="metric-card dark-card">
+              <small>后续扩展</small>
+              <strong>可接真实 Worker</strong>
+              <p>后续可逐步接入日志分析、分群统计、FAQ 检索等真实业务能力。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="double-grid">
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <h2>当前 MVP 目标</h2>
+                <p>先把平台的基本协作机制做通。</p>
+              </div>
+              <span class="pill blue">Goal</span>
+            </div>
+            <div class="checklist">
+              <div class="check-item">
+                <span class="dot blue"></span>
+                <div>
+                  <strong>输入事件标准化</strong>
+                  <p>把玩家反馈、工单和社区文本统一成可处理的输入对象。</p>
+                </div>
+              </div>
+              <div class="check-item">
+                <span class="dot violet"></span>
+                <div>
+                  <strong>Manager 路由成立</strong>
+                  <p>能识别问题类型、判断优先级，并选择对应 Worker。</p>
+                </div>
+              </div>
+              <div class="check-item">
+                <span class="dot gold"></span>
+                <div>
+                  <strong>Worker 闭环可跑</strong>
+                  <p>至少能完成分类、相似案例检索、摘要和公告草稿生成。</p>
+                </div>
+              </div>
+              <div class="check-item">
+                <span class="dot green"></span>
+                <div>
+                  <strong>结构化输出</strong>
+                  <p>输出内部处理建议、公告草稿和结构化任务单，供人工确认。</p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="section-head">
+              <div>
+                <h2>当前不做什么</h2>
+                <p>避免两天内把项目做成大而空。</p>
+              </div>
+              <span class="pill red">Not in Scope</span>
+            </div>
+            <div class="checklist">
+              <div class="check-item">
+                <span class="dot red"></span>
+                <div>
+                  <strong>不直接接真实生产数据库</strong>
+                  <p>先验证平台交互与路由逻辑，不在本阶段承担数据安全和权限复杂度。</p>
+                </div>
+              </div>
+              <div class="check-item">
+                <span class="dot red"></span>
+                <div>
+                  <strong>不自动执行高风险动作</strong>
+                  <p>当前只生成建议、摘要和草稿，不直接发奖、不改配置、不对外发布。</p>
+                </div>
+              </div>
+              <div class="check-item">
+                <span class="dot red"></span>
+                <div>
+                  <strong>不在第一阶段做复杂多 Agent 记忆系统</strong>
+                  <p>先把 Manager + Worker 最小闭环证明成立，再考虑长期记忆和复杂编排。</p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
